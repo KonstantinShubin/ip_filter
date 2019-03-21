@@ -44,8 +44,3 @@ def clear_table():
             del ip_filter_table[ip]
         else:
             return 2
-
-
-check_ip("192.0.0.0")
-check_ip("192.0.0.1")
-check_ip("192.0.0.2")
