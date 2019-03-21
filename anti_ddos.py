@@ -44,22 +44,22 @@ def check_ip(our_ip):
                                    "NUM_LOGINS": 1, "STATUS": 0}]
         num_ips += 1
         return OK, ""
-    else:
-        if ip_filter_table[our_ip][0]["STATUS"] == 1:
-            return SOFT_BAN, "You has been blocked for <x> minutes." \
-                              "Please try again later."
-            # TODO: return 1, time - где time это время бана, которое мы можем
-            # увеличивать
-        elif ip_filter_table[our_ip][0]["NUM_LOGINS"] + 1 > num_softban:
-            ip_filter_table[our_ip][0]["STATUS"] = 1
-            return SOFT_BAN, ""
-        else:
-            login_time = time.time()
 
-            if login_time - ip_filter_table[our_ip][0]["TIME"] > log_time:
-                ip_filter_table[our_ip][0]["TIME"] = login_time
-                ip_filter_table[our_ip][0]["NUM_LOGINS"] = 1
-                return OK, ""  # LEGIT
-            else:
-                ip_filter_table[our_ip][0]["NUM_LOGINS"] += 1
-                return OK, ""  # LEGIT
+    if ip_filter_table[our_ip][0]["STATUS"] == 1:
+        return SOFT_BAN, "You has been blocked for <x> minutes." \
+                 "Please try again later."
+        # TODO: return 1, time - где time это время бана, которое мы можем
+        # увеличивать
+    elif ip_filter_table[our_ip][0]["NUM_LOGINS"] + 1 > num_softban:
+        ip_filter_table[our_ip][0]["STATUS"] = 1
+        return SOFT_BAN, ""
+    else:
+        login_time = time.time()
+
+        if login_time - ip_filter_table[our_ip][0]["TIME"] > log_time:
+            ip_filter_table[our_ip][0]["TIME"] = login_time
+            ip_filter_table[our_ip][0]["NUM_LOGINS"] = 1
+            return OK, ""  # LEGIT
+        else:
+            ip_filter_table[our_ip][0]["NUM_LOGINS"] += 1
+            return OK, ""  # LEGIT
