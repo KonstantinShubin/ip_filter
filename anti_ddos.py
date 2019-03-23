@@ -60,16 +60,17 @@ def check_ip(our_ip):
         elif ip_filter_table[0]["BANNED_TIME"] > login_time - ip_filter_table[our_ip][0]["TIME"]:
             ip_filter_table[our_ip][0]["TIME"] = login_time
             ip_filter_table[our_ip][0]["BANNED_TIME"] = ban_time_coef * (ip_filter_table[0]["BANNED_TIME"] - login_time - ip_filter_table[our_ip][0]["TIME"])
-            remaining_ban_time = ip_filter_table[our_ip][0]["BANNED_TIME"]
-            # TODO: Remaining ban time in minutes and seconds
+            if ip_filter_table[our_ip][0]["BANNED_TIME"] > max_ban_time:
+                ip_filter_table[our_ip][0]["BANNED_TIME"] = max_ban_time
+            remaining_ban_time = time.strftime("%H hours, %M minutes and %S seconds. ", time.gmtime(ip_filter_table[our_ip][0]["BANNED_TIME"]))
             return SOFT_BAN, f"Your ban time was increased and now is {remaining_ban_time} seconds." \
                 "Please try again later."
     elif ip_filter_table[our_ip][0]["NUM_LOGINS"] + 1 > num_softban:
         ip_filter_table[our_ip][0]["STATUS"] = 1
         ip_filter_table[our_ip][0]["TIME"] = login_time
         ip_filter_table[our_ip][0]["BANNED_TIME"] = first_time_ban
-        # TODO: Remaining ban time in minutes and seconds
-        return SOFT_BAN, f"You have been blocked for {first_time_ban} seconds. " \
+        remaining_ban_time = time.strftime("%H hours, %M minutes and %S seconds. ", time.gmtime(first_time_ban))
+        return SOFT_BAN, f"You have been blocked for {remaining_ban_time}" \
             f"If you return before this time ends, your remaining ban time will be multiplied by {ban_time_coef}. " \
             "Please try again later."
     else:
