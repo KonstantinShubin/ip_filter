@@ -7,7 +7,7 @@ check_ip_switch = True
 log_time = 20  # Number in seconds in which we check for number of logins
 num_softban = 20  # Number of max acceptable logins for log_time seconds
 threshold = 2
-first_time_ban = 1800 # time is seconds (1800 = 30 minutes)
+first_time_ban = 1800  # time is seconds (1800 = 30 minutes)
 ban_time_coef = 1.5
 max_ban_time = 21600  # time in seconds (21600 = 6 hours)
 
@@ -63,14 +63,14 @@ def check_ip(our_ip):
             remaining_ban_time = ip_filter_table[our_ip][0]["BANNED_TIME"]
             # TODO: Remaining ban time in minutes and seconds
             return SOFT_BAN, f"Your ban time was increased and now is {remaining_ban_time} seconds." \
-                             "Please try again later."
+                "Please try again later."
     elif ip_filter_table[our_ip][0]["NUM_LOGINS"] + 1 > num_softban:
         ip_filter_table[our_ip][0]["STATUS"] = 1
         ip_filter_table[our_ip][0]["TIME"] = login_time
         ip_filter_table[our_ip][0]["BANNED_TIME"] = first_time_ban
         # TODO: Remaining ban time in minutes and seconds
         return SOFT_BAN, f"You have been blocked for {first_time_ban} seconds. " \
-            f"If you return before this time ends, you remaining ban time will be multiplied by {ban_time_coef}. " \
+            f"If you return before this time ends, your remaining ban time will be multiplied by {ban_time_coef}. " \
             "Please try again later."
     else:
         if login_time - ip_filter_table[our_ip][0]["TIME"] > log_time:
