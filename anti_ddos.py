@@ -7,6 +7,9 @@ check_ip_switch = True
 log_time = 20  # Number in seconds in which we check for number of logins
 num_softban = 20  # Number of max acceptable logins for log_time seconds
 threshold = 2
+first_time_ban = 1800 # time is seconds (1800 = 30 minutes)
+ban_time_coef = 1.5
+max_ban_time = 21600  # time in seconds (21600 = 6 hours)
 
 ip_filter_table = {}
 num_ips = 0
@@ -45,25 +48,30 @@ def check_ip(our_ip):
 
     if our_ip not in ip_filter_table.keys():
         ip_filter_table[our_ip] = [{"TIME": time.time(),
-                                    "NUM_LOGINS": 1, "STATUS": 0}]
+                                    "NUM_LOGINS": 1, "STATUS": 0, "BANNED_TIME": 0}]
         num_ips += 1
         return OK, ""
 
     if ip_filter_table[our_ip][0]["STATUS"] == 1:
-        if login_time - ip_filter_table[our_ip][0]["TIME"] > log_time:
+        if ip_filter_table[our_ip][0]["BANNED_TIME"] == 0 and login_time - ip_filter_table[our_ip][0]["TIME"] > log_time:
             ip_filter_table[our_ip][0]["STATUS"] = 0
             ip_filter_table[our_ip][0]["TIME"] = login_time
             return OK, ""
-        else:
-            # TODO: Увеличить время бана у данного ip
+        elif ip_filter_table[0]["BANNED_TIME"] > login_time - ip_filter_table[our_ip][0]["TIME"]:
             ip_filter_table[our_ip][0]["TIME"] = login_time
-            return SOFT_BAN, "You has been blocked for <x> minutes." \
+            ip_filter_table[our_ip][0]["BANNED_TIME"] = ban_time_coef * (ip_filter_table[0]["BANNED_TIME"] - login_time - ip_filter_table[our_ip][0]["TIME"])
+            remaining_ban_time = ip_filter_table[our_ip][0]["BANNED_TIME"]
+            # TODO: Remaining ban time in minutes and seconds
+            return SOFT_BAN, f"Your ban time was increased and now is {remaining_ban_time} seconds." \
                              "Please try again later."
-    elif ip_filter_table[our_ip][0]["NUM_LOGINS"] + 1 > num_softban:  # TODO: Прописываем на сколько по времени ip должен получить бан.
+    elif ip_filter_table[our_ip][0]["NUM_LOGINS"] + 1 > num_softban:
         ip_filter_table[our_ip][0]["STATUS"] = 1
         ip_filter_table[our_ip][0]["TIME"] = login_time
-        return SOFT_BAN, "You are banned for <x> minutes, because of sending too many requests" \
-                         "Please try again later."
+        ip_filter_table[our_ip][0]["BANNED_TIME"] = first_time_ban
+        # TODO: Remaining ban time in minutes and seconds
+        return SOFT_BAN, f"You have been blocked for {first_time_ban} seconds. " \
+            f"If you return before this time ends, you remaining ban time will be multiplied by {ban_time_coef}. " \
+            "Please try again later."
     else:
         if login_time - ip_filter_table[our_ip][0]["TIME"] > log_time:
             ip_filter_table[our_ip][0]["NUM_LOGINS"] = 1
