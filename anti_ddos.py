@@ -42,6 +42,7 @@ def check_ip(our_ip):
 
     if num_ips >= threshold:
         clear_table()
+        num_ips = len(ip_filter_table.keys())
 
     if num_ips >= threshold:
         return NO_SPACE, "IP filer is overfilled. Please try again late"
