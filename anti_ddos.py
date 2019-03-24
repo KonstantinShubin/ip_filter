@@ -22,7 +22,7 @@ NO_SPACE = 2
 # FIXME
 def clear_table():
     for ip in list(ip_filter_table):
-        if ip_filter_table[ip][0]["STATUS"] == 1 \
+        if ip_filter_table[ip][0]["STATUS"] == 0 \
                 and time.time() - ip_filter_table[ip][0]["TIME"] > log_time:
             del ip_filter_table[ip]
         else:
