@@ -25,6 +25,7 @@ def clear_table():
         if ip_filter_table[ip]["STATUS"] == 0 \
                 and time.time() - ip_filter_table[ip]["TIME"] > log_time:
             del ip_filter_table[ip]
+            num_ips -= 1
 
 
 def check_ip(our_ip):
