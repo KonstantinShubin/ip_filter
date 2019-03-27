@@ -4,8 +4,8 @@ import time
 
 # 1 - We check ips. 0 - if we want to turn off checking ips
 check_ip_switch = True
-log_time = 20  # Number in seconds in which we check for number of logins
-num_softban = 20  # Number of max acceptable logins for log_time seconds
+log_time = 3  # Number in seconds in which we check for number of logins
+num_softban = 1  # Number of max acceptable logins for log_time seconds
 threshold = 2
 first_time_ban = 1800  # time is seconds (1800 = 30 minutes)
 ban_time_coef = 1.5
@@ -21,6 +21,7 @@ NO_SPACE = 2
 
 # FIXME
 def clear_table():
+    global num_ips
     for ip in list(ip_filter_table):
         if ip_filter_table[ip]["STATUS"] == 0 \
                 and time.time() - ip_filter_table[ip]["TIME"] > log_time:
