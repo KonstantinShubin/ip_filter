@@ -1,13 +1,19 @@
 import anti_ddos as anti
 import time
+import pytest
 
-anti.check_ip_switch = True
-anti.log_time = 20  # Number in seconds in which we check for number of logins
-anti.num_softban = 20  # Number of max acceptable logins for log_time seconds
-anti.threshold = 100000
-anti.first_time_ban = 1800  # time is seconds (1800 = 30 minutes)
-anti.ban_time_coef = 1.5
-anti.max_ban_time = 21600  # time in seconds (21600 = 6 hours)
+
+# fixtures
+@pytest.fixture
+def reset_table():
+    anti.ip_filter_table = {}
+    anti.check_ip_switch = True
+    anti.log_time = 60  # Number in seconds in which we check for number of logins
+    anti.num_softban = 60  # Number of max acceptable logins for log_time seconds
+    anti.threshold = 100000
+    anti.first_time_ban = 1800  # time is seconds (1800 = 30 minutes)
+    anti.ban_time_coef = 1.5
+    anti.max_ban_time = 21600  # time in seconds (21600 = 6 hours)
 
 
 # support functions
@@ -37,59 +43,56 @@ def check(ip):
 
 
 # unit tests on pytest module
-def test_check_ip_switch_off():
+def test_check_ip_switch_off(reset_table):
     anti.check_ip_switch = False
     assert check("1") == (anti.OK, "Website is currently disabled. ")
 
 
-def test_check_ip_switch_on():
-    anti.check_ip_switch = True
-    assert check("2") == (anti.OK, "Welcome, new user. ")
+def test_check_ip_switch_on(reset_table):
+    assert check("1") == (anti.OK, "Welcome, new user. ")
 
 
-def test_threshold_overloaded():
-    anti.ip_filter_table = {}
+def test_threshold_overloaded(reset_table):
     anti.threshold = 2
     assert check("1") == (anti.OK, "Welcome, new user. ")
     assert check("2") == (anti.OK, "Welcome, new user. ")
     assert check("3") == (anti.NO_SPACE, "IP filer is overfilled. Please try again late. ")
-    anti.threshold = 100000
 
 
-# FIXME
-def test_threshold_clear_table():
-    anti.ip_filter_table = {}
+def test_threshold_clear_table(reset_table):
     anti.threshold = 2
     anti.num_softban = 1
     anti.log_time = 3
     check_ip_range("1", 2)
-    check("2"), time.sleep(3)
+    check("2"), time.sleep(anti.log_time + 1)
     check("3")
-    assert "1" in anti.ip_filter_table.keys()
-    assert "2" not in anti.ip_filter_table.keys()
-    assert "3" in anti.ip_filter_table.keys()
-    anti.threshold = 100000
-    anti.num_softban = 20
-    anti.log_time = 20
+
+    assert get_status("1") == 1
+    assert "1" in anti.ip_filter_table.keys()  # we keep banned user in table after clearing
+
+    assert "2" not in anti.ip_filter_table.keys()  # we don't keep user, who logged long time ago
+
+    assert get_status("3") == 0
+    assert time.time() - get_time("3") <= anti.log_time
+    assert "3" in anti.ip_filter_table.keys()  # we keep user who logged not long ago
 
 
-def test_new_ip_time():
-    anti.ip_filter_table = {}
-    check("3")
-    assert time.time() + 1 >= get_time("3")
-    assert time.time() - 1 <= get_time("3")
+def test_new_ip_time(reset_table):
+    check("1")
+    assert time.time() + 1 >= get_time("1")
+    assert time.time() - 1 <= get_time("1")
 
 
-def test_new_ip_num_logins():
-    check("4")
-    assert get_num_logins("4") == 1
+def test_new_ip_num_logins(reset_table):
+    check("1")
+    assert get_num_logins("1") == 1
 
 
-def test_new_ip_status():
-    check("5")
-    assert get_status("5") == 0
+def test_new_ip_status(reset_table):
+    check("1")
+    assert get_status("1") == 0
 
 
-def test_new_ip_banned_time():
-    check("6")
-    assert get_banned_time("6") == 0
+def test_new_ip_banned_time(reset_table):
+    check("1")
+    assert get_banned_time("1") == 0
