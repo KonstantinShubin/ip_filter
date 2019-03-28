@@ -7,6 +7,7 @@ import pytest
 @pytest.fixture
 def reset_table():
     anti.ip_filter_table = {}
+    anti.num_ips = 0
     anti.check_ip_switch = True
     anti.log_time = 60  # Number in seconds in which we check for number of logins
     anti.num_softban = 60  # Number of max acceptable logins for log_time seconds
@@ -33,6 +34,10 @@ def get_banned_time(ip):
     return anti.ip_filter_table[ip]["BANNED_TIME"]
 
 
+def get_num_ips():
+    return anti.num_ips
+
+
 def check_ip_range(ip, times):
     for i in range(times):
         check(ip)
@@ -52,7 +57,7 @@ def test_check_ip_switch_on(reset_table):
     assert check("1") == (anti.OK, "Welcome, new user. ")
 
 
-def test_threshold_overloaded(reset_table):
+def test_threshold_no_space(reset_table):
     anti.threshold = 2
     assert check("1") == (anti.OK, "Welcome, new user. ")
     assert check("2") == (anti.OK, "Welcome, new user. ")
@@ -76,6 +81,8 @@ def test_threshold_clear_table(reset_table):
     assert time.time() - get_time("3") <= anti.log_time
     assert "3" in anti.ip_filter_table.keys()  # we keep user who logged not long ago
 
+    assert get_num_ips() == 2  # we hold number only of banned and recently logged user
+
 
 def test_new_ip_time(reset_table):
     check("1")
@@ -96,3 +103,14 @@ def test_new_ip_status(reset_table):
 def test_new_ip_banned_time(reset_table):
     check("1")
     assert get_banned_time("1") == 0
+
+
+def test_num_ips(reset_table):
+    assert get_num_ips() == 0
+    check("1")
+    assert get_num_ips() == 1
+    check("1")
+    assert get_num_ips() == 1
+    check("2")
+    assert get_num_ips() == 2
+
