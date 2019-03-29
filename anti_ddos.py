@@ -61,12 +61,12 @@ def check_ip(our_ip):
             ip_filter_table[our_ip]["BANNED_TIME"] = 0
             return OK, "You are unbanned now. "
         elif ip_filter_table[our_ip]["BANNED_TIME"] > current_time - ip_filter_table[our_ip]["TIME"]:
+            ip_filter_table[our_ip]["BANNED_TIME"] = ban_time_coef * (ip_filter_table[our_ip]["BANNED_TIME"] - (current_time - ip_filter_table[our_ip]["TIME"]))
             ip_filter_table[our_ip]["TIME"] = current_time
-            ip_filter_table[our_ip]["BANNED_TIME"] = ban_time_coef * (ip_filter_table[our_ip]["BANNED_TIME"] - current_time - ip_filter_table[our_ip]["TIME"])
             if ip_filter_table[our_ip]["BANNED_TIME"] > max_ban_time:
                 ip_filter_table[our_ip]["BANNED_TIME"] = max_ban_time
             remaining_ban_time = time.strftime("%H hours, %M minutes and %S seconds. ", time.gmtime(ip_filter_table[our_ip]["BANNED_TIME"]))
-            return SOFT_BAN, f"Your ban time was increased and now is {remaining_ban_time} seconds." \
+            return SOFT_BAN, f"Your ban time was increased by {ban_time_coef} and now is {remaining_ban_time}" \
                 "Please try again later. "
 
     else:
