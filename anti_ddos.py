@@ -7,7 +7,7 @@ check_ip_switch = True
 log_time = 3  # Number in seconds in which we check for number of logins
 num_softban = 1  # Number of max acceptable logins for log_time seconds
 threshold = 2
-first_time_ban = 1800  # time is seconds (1800 = 30 minutes)
+first_time_ban = 1800  # time is seconds (1800 = 30 minutes), should be > log_time
 ban_time_coef = 1.5
 max_ban_time = 21600  # time in seconds (21600 = 6 hours)
 
@@ -54,10 +54,12 @@ def check_ip(our_ip):
         return OK, "Welcome, new user. "
 
     if ip_filter_table[our_ip]["STATUS"] == 1:
-        if ip_filter_table[our_ip]["BANNED_TIME"] == 0 and current_time - ip_filter_table[our_ip]["TIME"] > log_time:
-            ip_filter_table[our_ip]["STATUS"] = 0
+        if ip_filter_table[our_ip]["BANNED_TIME"] <= current_time - ip_filter_table[our_ip]["TIME"] and current_time - ip_filter_table[our_ip]["TIME"] > log_time:
             ip_filter_table[our_ip]["TIME"] = current_time
-            return OK, ""
+            ip_filter_table[our_ip]["NUM_LOGINS"] = 1
+            ip_filter_table[our_ip]["STATUS"] = 0
+            ip_filter_table[our_ip]["BANNED_TIME"] = 0
+            return OK, "You are unbanned now. "
         elif ip_filter_table[our_ip]["BANNED_TIME"] > current_time - ip_filter_table[our_ip]["TIME"]:
             ip_filter_table[our_ip]["TIME"] = current_time
             ip_filter_table[our_ip]["BANNED_TIME"] = ban_time_coef * (ip_filter_table[our_ip]["BANNED_TIME"] - current_time - ip_filter_table[our_ip]["TIME"])
