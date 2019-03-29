@@ -61,7 +61,7 @@ def check_ip(our_ip):
             ip_filter_table[our_ip]["BANNED_TIME"] = 0
             return OK, "You are unbanned now. "
         elif ip_filter_table[our_ip]["BANNED_TIME"] > current_time - ip_filter_table[our_ip]["TIME"]:
-            ip_filter_table[our_ip]["BANNED_TIME"] = ban_time_coef * (ip_filter_table[our_ip]["BANNED_TIME"] - (current_time - ip_filter_table[our_ip]["TIME"]))
+            ip_filter_table[our_ip]["BANNED_TIME"] = round(ban_time_coef * (ip_filter_table[our_ip]["BANNED_TIME"] - (current_time - ip_filter_table[our_ip]["TIME"])))
             ip_filter_table[our_ip]["TIME"] = current_time
             if ip_filter_table[our_ip]["BANNED_TIME"] > max_ban_time:
                 ip_filter_table[our_ip]["BANNED_TIME"] = max_ban_time
