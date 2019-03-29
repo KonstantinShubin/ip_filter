@@ -58,7 +58,7 @@ def check_ip(our_ip):
             ip_filter_table[our_ip]["STATUS"] = 0
             ip_filter_table[our_ip]["TIME"] = current_time
             return OK, ""
-        elif ip_filter_table["BANNED_TIME"] > current_time - ip_filter_table[our_ip]["TIME"]:
+        elif ip_filter_table[our_ip]["BANNED_TIME"] > current_time - ip_filter_table[our_ip]["TIME"]:
             ip_filter_table[our_ip]["TIME"] = current_time
             ip_filter_table[our_ip]["BANNED_TIME"] = ban_time_coef * (ip_filter_table[our_ip]["BANNED_TIME"] - current_time - ip_filter_table[our_ip]["TIME"])
             if ip_filter_table[our_ip]["BANNED_TIME"] > max_ban_time:
