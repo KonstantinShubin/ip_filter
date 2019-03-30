@@ -86,8 +86,8 @@ def test_threshold_clear_table(reset_table):
 
 def test_new_ip_time(reset_table):
     check("1")
-    assert time.time() + 1 >= get_time("1")
-    assert time.time() - 1 <= get_time("1")
+    assert time.time() + 1 > get_time("1")
+    assert time.time() - 1 < get_time("1")
 
 
 def test_new_ip_num_logins(reset_table):
@@ -114,3 +114,40 @@ def test_num_ips(reset_table):
     check("2")
     assert get_num_ips() == 2
 
+
+def test_longtime_ago_banned(reset_table):
+    anti.num_softban = 2
+    anti.first_time_ban = 5
+    anti.log_time = 2
+
+    check_ip_range("1", 3)
+    assert anti.first_time_ban > anti.log_time
+    assert get_status("1") == 1
+    assert get_banned_time("1") == anti.first_time_ban
+    time.sleep(anti.first_time_ban + 1)
+    assert check("1") == (anti.OK, "You are unbanned now. ")
+    assert time.time() + 1 > get_time("1")
+    assert time.time() - 1 < get_time("1")
+    assert get_num_logins("1") == 1
+    assert get_status("1") == 0
+    assert get_banned_time("1") == 0
+
+
+def test_recently_logged_banned_user(reset_table):
+    anti.num_softban = 2
+    anti.first_time_ban = 30
+    anti.log_time = 2
+    anti.ban_time_coef = 1
+
+    check_ip_range("1", 3)
+    assert anti.first_time_ban > anti.log_time
+    time.sleep(anti.first_time_ban - 25)
+    check("1")
+    assert round(get_banned_time("1")) == anti.ban_time_coef * (anti.first_time_ban - 5)
+    assert time.time() + 1 > get_time("1")
+    assert time.time() - 1 < get_time("1")
+    remaining_time = time.strftime("%H hours, %M minutes and %S seconds", time.gmtime(get_banned_time("1")))
+    assert check("1") == (anti.SOFT_BAN, "Your ban time was increased by {} and now is {}. Please try again later. ".format(anti.ban_time_coef, remaining_time))
+    assert get_status("1") == 1
+
+# def test_banned_time_over_max(reset_table):
