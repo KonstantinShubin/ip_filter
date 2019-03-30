@@ -80,8 +80,8 @@ def check_ip(our_ip):
                 ip_filter_table[our_ip]["STATUS"] = 1
                 ip_filter_table[our_ip]["TIME"] = current_time
                 ip_filter_table[our_ip]["BANNED_TIME"] = first_time_ban
-                remaining_ban_time = time.strftime("%H hours, %M minutes and %S seconds. ", time.gmtime(first_time_ban))
-                return SOFT_BAN, f"You have been blocked for {remaining_ban_time}" \
+                remaining_ban_time = time.strftime("%H hours, %M minutes and %S seconds", time.gmtime(first_time_ban))
+                return SOFT_BAN, f"You have been blocked for {remaining_ban_time}. " \
                     f"If you return before this time ends, your remaining ban time will be multiplied by {ban_time_coef}. " \
                     "Please try again later. "
             else:
