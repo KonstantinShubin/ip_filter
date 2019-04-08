@@ -10,6 +10,7 @@ threshold = 2
 first_time_ban = 1800  # time is seconds (1800 = 30 minutes), should be > log_time
 ban_time_coef = 1.5
 max_ban_time = 21600  # time in seconds (21600 = 6 hours)
+max_keep_time = 172800  # for what time we keep soft banned user from last login time (172800 = 48 hours)
 
 ip_filter_table = {}
 num_ips = 0
@@ -23,8 +24,8 @@ NO_SPACE = 2
 def clear_table():
     global num_ips
     for ip in list(ip_filter_table):
-        if ip_filter_table[ip]["STATUS"] == 0 \
-                and time.time() - ip_filter_table[ip]["TIME"] > log_time:
+        if ip_filter_table[ip]["STATUS"] == 0 and time.time() - ip_filter_table[ip]["TIME"] > log_time \
+                or ip_filter_table[ip]["STATUS"] == 1 and time.time() - ip_filter_table[ip]["TIME"] > max_keep_time:
             del ip_filter_table[ip]
             num_ips -= 1
 
