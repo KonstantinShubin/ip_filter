@@ -15,6 +15,7 @@ def reset_table():
     anti.first_time_ban = 1800  # time is seconds (1800 = 30 minutes)
     anti.ban_time_coef = 1.5
     anti.max_ban_time = 21600  # time in seconds (21600 = 6 hours)
+    anti.max_keep_time = 172800  # for what time we keep soft banned user from last login time (172800 = 48 hours)
 
 
 # support functions
@@ -74,18 +75,24 @@ def test_threshold_clear_table(reset_table):
     anti.threshold = 2
     anti.num_softban = 1
     anti.log_time = 3
+    anti.max_keep_time = 5
 
     check_ip_range("192.1.1.1", 2)
-    check("192.2.2.2"), time.sleep(anti.log_time + 1)
+    check("192.2.2.2")
+    time.sleep(anti.log_time + 1)
     check("192.3.3.3")
     assert get_status("192.1.1.1") == 1
-    assert "192.1.1.1" in anti.ip_filter_table.keys()  # we keep banned user in table after clearing
+    assert "192.1.1.1" in anti.ip_filter_table.keys()  # we keep banned user in table after clearing before max_keep_time expires
     assert "192.2.2.2" not in anti.ip_filter_table.keys()  # we don't keep user, who logged long time ago
     assert get_status("192.3.3.3") == 0
     assert time.time() - get_time("192.3.3.3") <= anti.log_time
     assert "192.3.3.3" in anti.ip_filter_table.keys()  # we keep user who logged not long ago
-
     assert get_num_ips() == 2  # we hold number only of banned and recently logged user
+    time.sleep(anti.max_keep_time + 1)
+    check("192.4.4.4")
+    assert "192.1.1.1" not in anti.ip_filter_table.keys()  # we don't keep banned user in table after clearing after max_keep_time
+    assert "192.4.4.4" in anti.ip_filter_table.keys()
+
 
 
 def test_new_ip_time(reset_table):
@@ -202,3 +209,37 @@ def test_good_ip_returned_again(reset_table):
     check("192.1.1.1")
     assert check("192.1.1.1") == (anti.OK, "Hi again. ")
     assert get_num_logins("192.1.1.1") == 2
+
+
+def test_massive_amount(reset_table):
+    """
+    Testing mass ddos scenario where we need to keep softbanned users in iptable after clearing table.
+    After that new good users should join ip table
+    """
+    anti.num_softban = 2
+    anti.log_time = 3
+    anti.first_time_ban = 5
+    for x in range(85000):
+        check_ip_range(f"192.0.0.{x}", 1)
+    assert len(anti.ip_filter_table) == 85000
+    for y in range(10000):
+        check_ip_range(f"192.1.1.{y}", 3)  # users are now softbanned
+    assert len(anti.ip_filter_table) == 95000
+    for z in range(5000):
+        check_ip_range(f"192.2.2.{z}", 1)
+    assert len(anti.ip_filter_table) == 100000
+
+    time.sleep(7)
+    for k in range(15000):
+        check_ip_range(f"192.3.3.{k}", 1)
+    n = 0
+    for key, value in anti.ip_filter_table.items():
+        if value["STATUS"] == 1:
+            n += 1
+    assert n == 10000  # we keep softbanned users in table before max_keep_time expires
+    assert len(anti.ip_filter_table) == 25000
+    for y in range(10000):
+        check_ip_range(f"192.1.1.{y}", 1)
+    for y in range(10000):
+        assert anti.ip_filter_table[f"192.1.1.{y}"]["STATUS"] == 0
+    assert len(anti.ip_filter_table) == 25000
