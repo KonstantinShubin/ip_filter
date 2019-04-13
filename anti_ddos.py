@@ -59,6 +59,9 @@ def check_ip(our_ip):
 
     current_time = time.time()
 
+    def ip_time_diff(ip):
+        return current_time - get_time(ip)
+
     if not check_ip_switch:
         return OK, "Website is currently disabled. "
 
@@ -80,16 +83,16 @@ def check_ip(our_ip):
 
     if get_status(our_ip) == 1:
         # Soft banned User waited for ban_time ending
-        if get_ban_time(our_ip) <= current_time - get_time(
-                our_ip) and current_time - get_time(our_ip) > log_time:
+        if get_ban_time(our_ip) <= ip_time_diff(our_ip) and ip_time_diff(
+                our_ip) > log_time:
             ip_filter_table[our_ip]["TIME"] = current_time
             ip_filter_table[our_ip]["NUM_LOGINS"] = 1
             ip_filter_table[our_ip]["STATUS"] = 0
             ip_filter_table[our_ip]["BANNED_TIME"] = 0
             return OK, "You are unbanned now. "
         # Soft banned User logged again before ban_time expired
-        elif get_ban_time(our_ip) > current_time - get_time(our_ip):
-            remaining_time = get_ban_time(our_ip) - get_time_diff(our_ip)
+        elif get_ban_time(our_ip) > ip_time_diff(our_ip):
+            remaining_time = get_ban_time(our_ip) - ip_time_diff(our_ip)
             rounded_ban_time = round(ban_time_coef * remaining_time)
             ip_filter_table[our_ip]["BANNED_TIME"] = rounded_ban_time
             ip_filter_table[our_ip]["TIME"] = current_time
@@ -103,7 +106,7 @@ def check_ip(our_ip):
 
     else:
         # Known User returned after log_time expired
-        if current_time - get_time(our_ip) > log_time:
+        if ip_time_diff(our_ip) > log_time:
             ip_filter_table[our_ip]["NUM_LOGINS"] = 1
             ip_filter_table[our_ip]["TIME"] = current_time
             return OK, "Welcome. Haven't seen you for a while. "
