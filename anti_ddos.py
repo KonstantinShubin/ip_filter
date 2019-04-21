@@ -72,7 +72,7 @@ def check_ip(our_ip):
     if num_ips >= threshold:
         return NO_SPACE, "IP filer is overfilled. Please try again late. "
 
-    # New User
+    # New IP
     if our_ip not in ip_filter_table.keys():
         ip_filter_table[our_ip] = {"TIME": time.time(),
                                    "NUM_LOGINS": 1,
@@ -82,7 +82,7 @@ def check_ip(our_ip):
         return OK, "Welcome, new user. "
 
     if get_status(our_ip) == 1:
-        # Soft banned User waited for ban_time ending
+        # Soft banned IP waited for ban_time ending
         if get_ban_time(our_ip) <= ip_time_diff(our_ip) and ip_time_diff(
                 our_ip) > log_time:
             ip_filter_table[our_ip]["TIME"] = current_time
@@ -90,7 +90,7 @@ def check_ip(our_ip):
             ip_filter_table[our_ip]["STATUS"] = 0
             ip_filter_table[our_ip]["BANNED_TIME"] = 0
             return OK, "You are unbanned now. "
-        # Soft banned User logged again before ban_time expired
+        # Soft banned IP logged again before ban_time expired
         elif get_ban_time(our_ip) > ip_time_diff(our_ip):
             remaining_time = get_ban_time(our_ip) - ip_time_diff(our_ip)
             rounded_ban_time = round(ban_time_coef * remaining_time)
@@ -101,18 +101,18 @@ def check_ip(our_ip):
             ban_time_text = "%H hours, %M minutes and %S seconds"
             ip_ban_time = time.gmtime(get_ban_time(our_ip))
             remaining_ban = time.strftime(ban_time_text, ip_ban_time)
-            return SOFT_BAN, f"Ban time was increased by {ban_time_coef} " \
-                f"and now is {remaining_ban}. Please try again later. "
+            return SOFT_BAN, f"Ban time increased by {ban_time_coef}" \
+                f" and now is {remaining_ban}. "
 
     else:
-        # Known User returned after log_time expired
+        # Known IP which returned after log_time expired
         if ip_time_diff(our_ip) > log_time:
             ip_filter_table[our_ip]["NUM_LOGINS"] = 1
             ip_filter_table[our_ip]["TIME"] = current_time
-            return OK, "Welcome. Haven't seen you for a while. "
+            return OK, "Welcome back. "
         else:
             ip_filter_table[our_ip]["NUM_LOGINS"] += 1
-            # First time banned user, now is soft banned
+            # First time banned IP, now is soft banned
             if get_num_logins(our_ip) > num_softban:
                 ip_filter_table[our_ip]["STATUS"] = 1
                 ip_filter_table[our_ip]["TIME"] = current_time
@@ -120,10 +120,9 @@ def check_ip(our_ip):
                 ban_time_text = "%H hours, %M minutes and %S seconds"
                 ip_ban_time = time.gmtime(first_time_ban)
                 first_ban = time.strftime(ban_time_text, ip_ban_time)
-                return SOFT_BAN, f"You are blocked for {first_ban}. " \
+                return SOFT_BAN, f"Blocked for {first_ban}. " \
                     f"If you return before this time ends, your remaining " \
-                    f"ban time will be multiplied by {ban_time_coef}. " \
-                    "Please try again later. "
-            # Known User returned in log_time
+                    f"ban time will be multiplied by {ban_time_coef}. "
+            # Known IP which returned before log_time expired
             else:
                 return OK, "Hi again. "

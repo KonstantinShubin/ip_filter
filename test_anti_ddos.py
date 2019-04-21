@@ -9,13 +9,13 @@ def reset_table():
     anti.ip_filter_table = {}
     anti.num_ips = 0
     anti.check_ip_switch = True
-    anti.log_time = 60  # Number in seconds in which we check for number of logins
-    anti.num_softban = 60  # Number of max acceptable logins for log_time seconds
+    anti.log_time = 60  # Number (seconds) in which number of logins is checked
+    anti.num_softban = 60  # Number of max logins for log_time seconds
     anti.threshold = 100000
     anti.first_time_ban = 1800  # time is seconds (1800 = 30 minutes)
     anti.ban_time_coef = 1.5
     anti.max_ban_time = 21600  # time in seconds (21600 = 6 hours)
-    anti.max_keep_time = 172800  # for what time we keep soft banned user from last login time (172800 = 48 hours)
+    anti.keep_time = 172800  # max keep time for soft banned IP (seconds)
 
 
 # support functions
@@ -49,73 +49,123 @@ def check(ip):
 
 
 def assert_current_time(ip):
-    assert time.time() + 1 > get_time(ip)
-    assert time.time() - 1 < get_time(ip)
+    assert time.time() + 0.5 > get_time(ip)
+    assert time.time() - 0.5 < get_time(ip)
+
+
+def table_keys():
+    return anti.ip_filter_table.keys()
 
 
 # unit tests on pytest module
 def test_check_ip_switch_off(reset_table):
+    """
+    No operations with ip_table, while ip_switch is off
+    """
     anti.check_ip_switch = False
     assert check("192.1.1.1") == (anti.OK, "Website is currently disabled. ")
+    assert "192.1.1.1" not in table_keys()
 
 
 def test_check_ip_switch_on(reset_table):
+    """
+    New IP is added in ip_table if ip_switch is on.
+    """
     assert check("192.1.1.1") == (anti.OK, "Welcome, new user. ")
+    assert "192.1.1.1" in table_keys()
 
 
 def test_threshold_no_space(reset_table):
+    """
+    New IP can't be added if ip_table is overfilled after clearing.
+    """
     anti.threshold = 2
 
     assert check("192.1.1.1") == (anti.OK, "Welcome, new user. ")
     assert check("192.2.2.2") == (anti.OK, "Welcome, new user. ")
-    assert check("192.3.3.3") == (anti.NO_SPACE, "IP filer is overfilled. Please try again late. ")
+    no_space_text = "IP filer is overfilled. Please try again late. "
+    assert check("192.3.3.3") == (anti.NO_SPACE, no_space_text)
+    assert "192.3.3.3" not in table_keys()
 
 
 def test_threshold_clear_table(reset_table):
-    anti.threshold = 2
-    anti.num_softban = 1
-    anti.log_time = 3
-    anti.max_keep_time = 5
+    """
+    DDOS scenario:
 
-    check_ip_range("192.1.1.1", 2)
+    When clearing table:
+    Soft banned IP is kept in table before max_keep_time expires.
+    Good IP is kept in table if log_time didn't expire.
+    Good IP is deleted from table if log_time expired.
+    Soft banned IP is deleted from table if max_keep_time expired.
+
+    After clearing table:
+    New Good IP joins table.
+    """
+    anti.threshold = 2
+    anti.num_softban = 2
+    anti.log_time = 3
+    anti.keep_time = 5
+
+    check_ip_range("192.1.1.1", 3)
     check("192.2.2.2")
     time.sleep(anti.log_time + 1)
     check("192.3.3.3")
+    # Table is now cleared here
+    # Soft banned IP is in table after clearing before max_keep_time expires
     assert get_status("192.1.1.1") == 1
-    assert "192.1.1.1" in anti.ip_filter_table.keys()  # we keep banned user in table after clearing before max_keep_time expires
-    assert "192.2.2.2" not in anti.ip_filter_table.keys()  # we don't keep user, who logged long time ago
+    assert "192.1.1.1" in table_keys()
+    # IP is deleted from ip_table if log_time expires
+    assert "192.2.2.2" not in table_keys()
+    # IP is kept after clearing if log_time didn't expire from last login
     assert get_status("192.3.3.3") == 0
     assert time.time() - get_time("192.3.3.3") <= anti.log_time
-    assert "192.3.3.3" in anti.ip_filter_table.keys()  # we keep user who logged not long ago
-    assert get_num_ips() == 2  # we hold number only of banned and recently logged user
-    time.sleep(anti.max_keep_time + 1)
-    check("192.4.4.4")
-    assert "192.1.1.1" not in anti.ip_filter_table.keys()  # we don't keep banned user in table after clearing after max_keep_time
-    assert "192.4.4.4" in anti.ip_filter_table.keys()
-
+    assert "192.3.3.3" in table_keys()  # New IP joins table
+    assert get_num_ips() == 2  # Number of banned and recently logged IP
+    time.sleep(anti.keep_time + 1)
+    check("192.3.3.3")
+    # Table is now cleared here
+    assert get_status("192.3.3.3") == 0
+    assert get_num_ips() == 1
+    assert "192.3.3.3" in table_keys()
+    assert "192.1.1.1" not in table_keys()  # Deleted after max_keep_time
 
 
 def test_new_ip_time(reset_table):
+    """
+    Saved time of IP is in range of max 0.5 sec
+    """
     check("192.1.1.1")
     assert_current_time("192.1.1.1")
 
 
 def test_new_ip_num_logins(reset_table):
+    """
+    New IP in table has number of logins = 1
+    """
     check("192.1.1.1")
     assert get_num_logins("192.1.1.1") == 1
 
 
 def test_new_ip_status(reset_table):
+    """
+    New IP in table has status = 0 (Not soft banned)
+    """
     check("192.1.1.1")
     assert get_status("192.1.1.1") == 0
 
 
 def test_new_ip_banned_time(reset_table):
+    """
+    New IP in table has no ban time
+    """
     check("192.1.1.1")
     assert get_banned_time("192.1.1.1") == 0
 
 
 def test_num_ips(reset_table):
+    """
+    num_ips variable only counts for unique IPs
+    """
     assert get_num_ips() == 0
     check("192.1.1.1")
     assert get_num_ips() == 1
@@ -126,6 +176,9 @@ def test_num_ips(reset_table):
 
 
 def test_longtime_ago_banned(reset_table):
+    """
+    Soft banner IP is unbanned when he logins after ban time expired
+    """
     anti.num_softban = 2
     anti.first_time_ban = 5
     anti.log_time = 2
@@ -134,6 +187,7 @@ def test_longtime_ago_banned(reset_table):
     assert anti.first_time_ban > anti.log_time
     assert get_status("192.1.1.1") == 1
     assert get_banned_time("192.1.1.1") == anti.first_time_ban
+    assert get_num_logins("192.1.1.1") == 3
     time.sleep(anti.first_time_ban + 1)
     assert check("192.1.1.1") == (anti.OK, "You are unbanned now. ")
     assert_current_time("192.1.1.1")
@@ -142,7 +196,10 @@ def test_longtime_ago_banned(reset_table):
     assert get_banned_time("192.1.1.1") == 0
 
 
-def test_recently_logged_banned_user(reset_table):
+def test_recently_logged_banned_ip(reset_table):
+    """
+    Ban time is increased, if soft banned IP returns before ban time expires
+    """
     anti.num_softban = 2
     anti.first_time_ban = 30
     anti.log_time = 2
@@ -152,14 +209,21 @@ def test_recently_logged_banned_user(reset_table):
     assert anti.first_time_ban > anti.log_time
     time.sleep(anti.first_time_ban - 25)
     check("192.1.1.1")
-    assert round(get_banned_time("192.1.1.1")) == anti.ban_time_coef * (anti.first_time_ban - 5)
+    assert round(get_banned_time("192.1.1.1")) == anti.ban_time_coef * (
+                anti.first_time_ban - 5)
     assert_current_time("192.1.1.1")
-    remaining_time = time.strftime("%H hours, %M minutes and %S seconds", time.gmtime(get_banned_time("192.1.1.1")))
-    assert check("192.1.1.1") == (anti.SOFT_BAN, "Your ban time was increased by {} and now is {}. Please try again later. ".format(anti.ban_time_coef, remaining_time))
+    remaining_time = time.strftime("%H hours, %M minutes and %S seconds",
+                                   time.gmtime(get_banned_time("192.1.1.1")))
+    assert check("192.1.1.1") == (anti.SOFT_BAN,
+                                  f"Ban time increased by {anti.ban_time_coef}"
+                                  f" and now is {remaining_time}. ")
     assert get_status("192.1.1.1") == 1
 
 
 def test_banned_time_over_max(reset_table):
+    """
+    Ban time can't be over max_ban_time variable in config
+    """
     anti.num_softban = 2
     anti.first_time_ban = 30
     anti.log_time = 2
@@ -172,22 +236,32 @@ def test_banned_time_over_max(reset_table):
     check("192.1.1.1")
     assert round(get_banned_time("192.1.1.1")) == anti.max_ban_time
     assert_current_time("192.1.1.1")
-    remaining_time = time.strftime("%H hours, %M minutes and %S seconds", time.gmtime(get_banned_time("192.1.1.1")))
-    assert check("192.1.1.1") == (anti.SOFT_BAN, "Your ban time was increased by {} and now is {}. Please try again later. ".format(anti.ban_time_coef, remaining_time))
+    remaining_time = time.strftime("%H hours, %M minutes and %S seconds",
+                                   time.gmtime(get_banned_time("192.1.1.1")))
+    assert check("192.1.1.1") == (anti.SOFT_BAN,
+                                  f"Ban time increased by {anti.ban_time_coef}"
+                                  f" and now is {remaining_time}. ")
     assert get_status("192.1.1.1") == 1
+    assert round(get_banned_time("192.1.1.1")) == anti.max_ban_time
 
 
 def test_not_banned_ip(reset_table):
+    """
+    Number of logins is = 1 for good IPs which returned after log_time expired
+    """
     anti.log_time = 3
 
     check("192.1.1.1")
     time.sleep(anti.log_time + 1)
-    assert check("192.1.1.1") == (anti.OK, "Welcome. Haven't seen you for a while. ")
+    assert check("192.1.1.1") == (anti.OK, "Welcome back. ")
     assert get_num_logins("192.1.1.1") == 1
     assert_current_time("192.1.1.1")
 
 
 def test_num_logins_over_limit(reset_table):
+    """
+    Ip gets soft ban if it logins more than num_softban time for a log_time
+    """
     anti.num_softban = 2
     anti.ban_time_coef = 4
     anti.first_time_ban = 30
@@ -196,9 +270,13 @@ def test_num_logins_over_limit(reset_table):
     assert get_num_logins("192.1.1.1") == 1
     check("192.1.1.1")
     assert get_num_logins("192.1.1.1") == 2
-    remaining_time = time.strftime("%H hours, %M minutes and %S seconds", time.gmtime(anti.first_time_ban))
-    assert check("192.1.1.1") == (anti.SOFT_BAN, f"You have been blocked for {remaining_time}. " \
-        f"If you return before this time ends, your remaining ban time will be multiplied by {anti.ban_time_coef}. Please try again later. ")
+    remaining_time = time.strftime("%H hours, %M minutes and %S seconds",
+                                   time.gmtime(anti.first_time_ban))
+    assert check("192.1.1.1") == (anti.SOFT_BAN,
+                                  f"Blocked for {remaining_time}. "
+                                  f"If you return before this time ends, your "
+                                  f"remaining ban time will be multiplied by "
+                                  f"{anti.ban_time_coef}. ")
     assert get_num_logins("192.1.1.1") == anti.num_softban + 1
     assert get_status("192.1.1.1") == 1
     assert_current_time("192.1.1.1")
@@ -206,15 +284,20 @@ def test_num_logins_over_limit(reset_table):
 
 
 def test_good_ip_returned_again(reset_table):
+    """
+    Status for again logged IP is returned and num_logins increases
+    """
     check("192.1.1.1")
+    assert get_num_logins("192.1.1.1") == 1
     assert check("192.1.1.1") == (anti.OK, "Hi again. ")
     assert get_num_logins("192.1.1.1") == 2
 
 
 def test_massive_amount(reset_table):
     """
-    Testing mass ddos scenario where we need to keep softbanned users in iptable after clearing table.
-    After that new good users should join ip table
+    Testing mass ddos scenario, after clearing table we need to:
+    - keep soft banned IPs in ip_table after clearing table.
+    - join new good IPs in ip_table.
     """
     anti.num_softban = 2
     anti.log_time = 3
@@ -223,7 +306,7 @@ def test_massive_amount(reset_table):
         check_ip_range(f"192.0.0.{x}", 1)
     assert len(anti.ip_filter_table) == 85000
     for y in range(10000):
-        check_ip_range(f"192.1.1.{y}", 3)  # users are now softbanned
+        check_ip_range(f"192.1.1.{y}", 3)  # IP is now soft banned
     assert len(anti.ip_filter_table) == 95000
     for z in range(5000):
         check_ip_range(f"192.2.2.{z}", 1)
@@ -236,7 +319,7 @@ def test_massive_amount(reset_table):
     for key, value in anti.ip_filter_table.items():
         if value["STATUS"] == 1:
             n += 1
-    assert n == 10000  # we keep softbanned users in table before max_keep_time expires
+    assert n == 10000  # Soft banned IP are in table before keep_time expires
     assert len(anti.ip_filter_table) == 25000
     for y in range(10000):
         check_ip_range(f"192.1.1.{y}", 1)
